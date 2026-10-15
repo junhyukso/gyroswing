@@ -1,0 +1,22 @@
+{
+  "name": "gyrosword",
+  "version": "1.0.0",
+  "description": "Phone-gyro first-person physics sword fighting (web prototype)",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test \"test/**/*.test.js\"",
+    "bench": "node tools/bench.mjs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "@dimforge/rapier3d-compat": "^0.21.0",
+    "node-forge": "^1.4.0",
+    "qrcode": "^1.5.4",
+    "three": "^0.186.1",
+    "ws": "^8.22.0"
+  },
+  "private": true
+}

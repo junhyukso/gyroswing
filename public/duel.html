@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GyroSword 대결</title>
+<link rel="stylesheet" href="/css/game.css">
+<link rel="stylesheet" href="/css/duel.css">
+<script type="importmap">
+{
+  "imports": {
+    "three": "/vendor/three/build/three.module.js",
+    "three/addons/": "/vendor/three/examples/jsm/",
+    "@dimforge/rapier3d-compat": "/vendor/rapier/rapier.mjs"
+  }
+}
+</script>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<!-- hit flashes, one per view -->
+<div id="vig-a" class="vig sa"></div>
+<div id="vig-b" class="vig sb"></div>
+
+<!-- scoreboard -->
+<div id="score">
+  <div class="side p1"><span class="nm">1P</span><div class="hp"><i id="hp-a"></i></div><span id="hpn-a" class="hpn">100</span></div>
+  <div id="wins">0 : 0</div>
+  <div class="side p2"><span id="hpn-b" class="hpn">100</span><div class="hp"><i id="hp-b"></i></div><span class="nm">2P</span></div>
+</div>
+<div id="feed"></div>
+<div id="banner"></div>
+<div id="tag-a" class="tag sa"></div>
+<div id="tag-b" class="tag sb"></div>
+<div id="remote" class="hidden"></div>
+<div id="waitHost" class="overlay hidden"><div class="panel">방장 컴퓨터를 기다리는 중… (방장 화면의 <b>/duel</b>이 열려 있어야 합니다)</div></div>
+
+<!-- connect panels, one per seat -->
+<div id="lobby-a" class="seatpanel sa hidden">
+  <div class="panel">
+    <div class="sptitle p1">1P 폰 연결</div>
+    <div class="qrbox"><img id="qr-a" alt="1P 폰 접속 QR 코드" width="200" height="200"><div id="url-a" class="mono"></div></div>
+    <div class="statusline"><span id="st-a" class="pill bad">폰 연결 대기</span></div>
+    <button id="zig-a">ZIG SIM으로 연결</button>
+    <div class="sphint">아이폰 카메라로 QR → Safari → <b>센서 시작</b>. ZIG SIM이면 버튼을 누르고 그 폰 화면을 터치.</div>
+  </div>
+</div>
+<div id="lobby-b" class="seatpanel sb hidden">
+  <div class="panel">
+    <div class="sptitle p2">2P 폰 연결</div>
+    <div class="qrbox"><img id="qr-b" alt="2P 폰 접속 QR 코드" width="200" height="200"><div id="url-b" class="mono"></div></div>
+    <div class="statusline"><span id="st-b" class="pill bad">폰 연결 대기</span></div>
+    <button id="zig-b">ZIG SIM으로 연결</button>
+    <div class="sphint">아이폰 카메라로 QR → Safari → <b>센서 시작</b>. ZIG SIM이면 버튼을 누르고 그 폰 화면을 터치.</div>
+    <div class="joinhint">2P가 <b>다른 컴퓨터</b>에서 하려면, 그 컴퓨터 브라우저로<br><span id="joinUrl" class="mono"></span></div>
+  </div>
+</div>
+
+<!-- calibration overlays, one per seat (CalibFlow suffixes -a / -b) -->
+<div id="calib-a" class="overlay hidden pass sa">
+  <div class="calibcard">
+    <div class="calhead"><span id="calStep-a" class="calstep"></span><span id="calTitle-a" class="caltitle"></span></div>
+    <div id="calText-a" class="caltext"></div>
+    <div id="calRing-a" class="calbar"><div id="calArc-a"></div></div>
+    <div id="calHint-a" class="calhint"></div>
+  </div>
+  <div id="calDiagram-a" class="caldiagram">
+    <figure><svg id="calTop-a" viewBox="-60 -60 120 120" width="120" height="120"></svg><figcaption>위에서 본 모습</figcaption></figure>
+    <figure><svg id="calSide-a" viewBox="-60 -60 120 120" width="120" height="120"></svg><figcaption>옆에서 본 모습</figcaption></figure>
+  </div>
+</div>
+<div id="calib-b" class="overlay hidden pass sb">
+  <div class="calibcard">
+    <div class="calhead"><span id="calStep-b" class="calstep"></span><span id="calTitle-b" class="caltitle"></span></div>
+    <div id="calText-b" class="caltext"></div>
+    <div id="calRing-b" class="calbar"><div id="calArc-b"></div></div>
+    <div id="calHint-b" class="calhint"></div>
+  </div>
+  <div id="calDiagram-b" class="caldiagram">
+    <figure><svg id="calTop-b" viewBox="-60 -60 120 120" width="120" height="120"></svg><figcaption>위에서 본 모습</figcaption></figure>
+    <figure><svg id="calSide-b" viewBox="-60 -60 120 120" width="120" height="120"></svg><figcaption>옆에서 본 모습</figcaption></figure>
+  </div>
+</div>
+
+<div id="toast"></div>
+<button id="btnSound" class="primary">🔊 소리 켜기 (클릭)</button>
+<div id="help" class="mono">
+  폰: <b>탭</b> 준비 · <b>두 번 탭</b> 전체 보정 · <b>길게</b> 정면 재정렬 · <b>끌기</b> 이동 &nbsp;|&nbsp;
+  <span class="hosthelp">키보드 1P: F 준비 · C 보정 · Space 재정렬 · WASD 이동 &nbsp; 2P: J · N · Enter · 방향키</span>
+  <span class="guesthelp">키보드: F 준비 · C 보정 · Space 재정렬 · WASD 이동</span>
+</div>
+
+<script type="module" src="/js/duel.js"></script>
+</body>
+</html>

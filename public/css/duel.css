@@ -1,0 +1,61 @@
+/* duel (local multiplayer): per-seat elements sit in their player's half (split screen) or fill the
+   screen (one view: host with the 2P on another PC shows 1P, the guest shows 2P) */
+:root { --p1: #5b8cff; --p2: #ff6a5b; }
+.sa, .sb { position: fixed; top: 0; bottom: 0; }
+body.split .sa { left: 0; right: 50%; }
+body.split .sb { left: 50%; right: 0; }
+body.single .sa, body.single .sb { left: 0; right: 0; }
+body.host.single .sb, body.guest .sa { display: none !important; }
+.overlay.sa, .overlay.sb { inset: auto; top: 0; bottom: 0; }
+body.split::after { content: ''; position: fixed; top: 0; bottom: 0; left: 50%; width: 2px; margin-left: -1px; background: rgba(0,0,0,.65); z-index: 3; pointer-events: none; }
+
+.vig { pointer-events: none; z-index: 4; opacity: 0; transition: opacity .35s;
+  background: radial-gradient(ellipse at center, transparent 40%, rgba(170, 20, 10, .6) 100%); }
+
+/* connect panels */
+.seatpanel { z-index: 9; display: flex; align-items: center; justify-content: center; pointer-events: none;
+  background: radial-gradient(ellipse at center, rgba(10,9,8,.45), rgba(10,9,8,.85)); }
+.seatpanel .panel { pointer-events: auto; display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 18px 22px; max-width: 420px; }
+.seatpanel .qrbox img { width: 200px; height: 200px; }
+.sptitle { font-size: 26px; font-weight: 800; letter-spacing: .06em; }
+.sptitle.p1, .nm:first-child { color: var(--p1); }
+.sptitle.p2 { color: var(--p2); }
+.sphint { font-size: 13px; color: var(--dim); text-align: center; line-height: 1.5; }
+.joinhint { font-size: 13px; color: var(--ink); text-align: center; line-height: 1.6; border-top: 1px solid var(--line); padding-top: 8px; }
+.joinhint .mono { color: var(--acc); font-size: 14px; user-select: all; }
+body.guest .joinhint { display: none; }
+.seatpanel button { font-size: 14px; padding: 8px 14px; }
+
+/* scoreboard */
+#score { position: fixed; left: 50%; top: 10px; transform: translateX(-50%); z-index: 6; display: flex; align-items: center; gap: 14px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 6px 14px; pointer-events: none; }
+#score .side { display: flex; align-items: center; gap: 8px; }
+#score .nm { font-weight: 800; font-size: 18px; }
+#score .p1 .nm { color: var(--p1); }
+#score .p2 .nm { color: var(--p2); }
+#score .hp { width: min(22vw, 260px); height: 12px; border-radius: 6px; background: rgba(255,255,255,.12); overflow: hidden; }
+#score .p2 .hp { transform: scaleX(-1); }
+#score .hp i { display: block; height: 100%; width: 100%; transition: width .15s; }
+#score .p1 .hp i { background: var(--p1); }
+#score .p2 .hp i { background: var(--p2); }
+#score .hpn { font-family: ui-monospace, Consolas, monospace; font-size: 14px; min-width: 2.2em; text-align: center; }
+#wins { font-size: 22px; font-weight: 800; color: var(--acc); min-width: 3.5em; text-align: center; }
+#feed { position: fixed; left: 50%; top: 58px; transform: translateX(-50%); z-index: 6; text-align: center; font-weight: 700; font-size: 16px;
+  text-shadow: 0 1px 3px rgba(0,0,0,.8); pointer-events: none; }
+#banner { position: fixed; left: 50%; top: 34%; transform: translate(-50%, -50%); z-index: 7; font-size: 34px; font-weight: 800; color: var(--acc);
+  text-shadow: 0 2px 10px rgba(0,0,0,.8); pointer-events: none; white-space: nowrap; }
+#banner.big { font-size: 110px; }
+.tag { top: auto !important; bottom: 30px; z-index: 6; text-align: center; font-size: 15px; font-weight: 700; pointer-events: none;
+  text-shadow: 0 1px 3px rgba(0,0,0,.9); }
+#tag-a { color: var(--p1); }
+#tag-b { color: var(--p2); }
+#remote { position: fixed; right: 12px; bottom: 30px; z-index: 6; font-size: 13px; color: var(--p2); background: var(--panel); border: 1px solid var(--line);
+  border-radius: 8px; padding: 6px 10px; pointer-events: none; }
+#btnSound { position: fixed; right: 12px; top: 12px; z-index: 11; font-size: 14px; padding: 8px 14px; }
+body.host .guesthelp, body.guest .hosthelp { display: none; }
+
+/* calibration cards in a half: narrower, diagrams in that half */
+body.split .calibcard { max-width: 46vw; padding: 10px 16px 8px; }
+body.split .caltitle { font-size: 21px; }
+body.split .caltext { font-size: 14px; }
+.caldiagram { position: absolute; left: 14px; bottom: 54px; }

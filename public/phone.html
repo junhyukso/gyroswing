@@ -1,0 +1,510 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0d0f12">
+<title>GyroSword 컨트롤러</title>
+<style>
+  :root { --bg:#0d0f12; --fg:#e9e4d8; --dim:#8a8476; --acc:#d9a441; --ok:#5fbf7a; --bad:#d9574a; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html, body { margin:0; height:100%; background:var(--bg); color:var(--fg);
+    font-family:-apple-system, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+    overflow:hidden; overscroll-behavior:none; touch-action:none;
+    -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; }
+  .screen { position:fixed; inset:0; display:flex; flex-direction:column; padding:max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom)); }
+  .hidden { display:none !important; }
+  h1 { font-size:22px; margin:8px 0 4px; letter-spacing:.02em; }
+  .sub { color:var(--dim); font-size:14px; line-height:1.5; }
+  .status { font-size:13px; color:var(--dim); display:flex; gap:10px; flex-wrap:wrap; }
+  .dot { display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--bad); margin-right:5px; vertical-align:middle; }
+  .dot.ok { background:var(--ok); }
+  #startBtn { margin:auto 0 12px; padding:22px; font-size:22px; font-weight:700; border:0; border-radius:16px; background:var(--acc); color:#1b1408; }
+  .guide { margin:18px 0; font-size:15px; line-height:1.7; }
+  .guide b { color:var(--acc); }
+  .warn { color:#f0b45a; font-size:13px; line-height:1.5; margin-top:10px; }
+  a { color:var(--acc); }
+  #play { justify-content:space-between; }
+  #promptTitle { font-size:clamp(26px, 8vw, 40px); font-weight:800; text-align:center; margin-top:12px; color:var(--acc); }
+  #promptText { font-size:clamp(17px, 5vw, 22px); text-align:center; line-height:1.5; margin-top:8px; white-space:pre-line; }
+  #pad { flex:1; margin:14px 0; border:1px dashed #333; border-radius:20px; position:relative; display:flex; align-items:center; justify-content:center; color:#555; font-size:14px; text-align:center; line-height:1.6; }
+  #knob { position:absolute; width:56px; height:56px; border-radius:50%; background:rgba(217,164,65,.35); border:2px solid var(--acc); transform:translate(-50%,-50%); pointer-events:none; display:none; }
+  #holdRing { position:absolute; inset:-3px; border-radius:22px; border:3px solid var(--acc); opacity:0; transition:opacity .1s; pointer-events:none; }
+  #mini { font-family:ui-monospace, Menlo, monospace; font-size:11px; color:#666; text-align:center; }
+  #camRow { display:flex; gap:8px; justify-content:center; margin-bottom:6px; }
+  #camRow button { font-size:13px; padding:8px 12px; border-radius:10px; border:1px solid #444; background:#1b1e23; color:var(--fg); }
+  #camRow button.on { border-color:var(--acc); color:var(--acc); }
+  #camVideo { position:fixed; right:10px; top:max(10px, env(safe-area-inset-top)); width:96px; height:72px; object-fit:cover; border-radius:8px; border:1px solid #444; background:#000; }
+  #camStat { font-family:ui-monospace, Menlo, monospace; font-size:11px; color:var(--acc); text-align:center; min-height:14px; }
+</style>
+</head>
+<body>
+<div id="intro" class="screen">
+  <h1>GyroSword 컨트롤러<span id="seatTag"></span></h1>
+  <div class="status"><span><span id="netDot" class="dot"></span><span id="netText">서버 연결 중…</span></span></div>
+  <div class="guide">
+    1. 폰을 <b>칼자루처럼 세로로</b> 쥐세요. <b>화면 위쪽이 칼끝</b> 방향입니다.<br>
+    2. 화면이 <b>엄지 쪽</b>을 보게 쥐면 엄지로 화면을 누를 수 있습니다.<br>
+    3. <b>손목 스트랩을 꼭 거세요.</b> 휘두르다 폰이 날아갈 수 있습니다.<br>
+    4. 아이폰 <b>화면 세로 고정</b>을 켜 두세요.
+  </div>
+  <div id="certWarn" class="warn hidden">
+    WebSocket 연결이 안 됩니다. 느린 HTTP 방식으로 자동 전환했습니다.<br>
+    더 빠르게 하려면 <a id="caLink" href="#">인증서를 설치</a>한 뒤
+    설정 › 일반 › 정보 › 인증서 신뢰 설정에서 GyroSword를 켜 주세요.
+  </div>
+  <button id="startBtn">센서 시작</button>
+  <div class="sub" id="sensorNote">시작을 누르면 "동작 및 방향" 접근 허용을 묻습니다. <b>허용</b>을 눌러 주세요.</div>
+</div>
+
+<div id="play" class="screen hidden">
+  <div>
+    <div class="status" style="justify-content:center">
+      <span><span id="netDot2" class="dot"></span><span id="netText2"></span></span>
+      <span id="rateText"></span><span id="pingText"></span>
+    </div>
+    <div id="promptTitle">연결됨</div>
+    <div id="promptText">PC 화면의 안내를 따라 주세요.</div>
+  </div>
+  <div id="pad">
+    <div>엄지로 <b>짧게 탭</b> = 확인<br>길게 누르기 = 재정렬 (칼끝을 화면으로)<br>끌기 = 이동</div>
+    <div id="knob"></div>
+    <div id="holdRing"></div>
+  </div>
+  <div id="camStat"></div>
+  <div id="camRow"><button id="camBtn">📷 카메라 진단</button><button id="camFace" class="hidden">앞/뒤 전환</button></div>
+  <div id="mini"></div>
+  <video id="camVideo" class="hidden" playsinline muted autoplay></video>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = (id) => document.getElementById(id);
+  const PKT = 80;
+  const clientId = Math.random().toString(36).slice(2, 10);
+  // multiplayer: the QR of a seat carries ?seat=<id>&p=<n>; the server relays this phone only to that seat
+  const qs = new URLSearchParams(location.search);
+  const SEAT = /^[a-z0-9]{4,16}$/.test(qs.get('seat') || '') ? qs.get('seat') : '';
+  const PNUM = /^[1-9]$/.test(qs.get('p') || '') ? qs.get('p') : '';
+  const seatQ = SEAT ? `&seat=${SEAT}` : '';
+  if (PNUM) { $('seatTag').textContent = ` · ${PNUM}P`; document.title = `GyroSword ${PNUM}P`; }
+  let ws = null, mode = 'ws', wsFails = 0, connected = false;
+  let httpQueue = [], httpBusy = false;
+
+  // ------------------------------------------------------------ network
+  function setNet(ok, text) {
+    if (rtc.open && text !== 'WebRTC') return; // fallback paths don't matter while the data channel is up
+    connected = ok;
+    for (const id of ['netDot', 'netDot2']) $(id).classList.toggle('ok', ok);
+    $('netText').textContent = text; $('netText2').textContent = text;
+  }
+  function connectWS() {
+    if (mode !== 'ws') return;
+    const url = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws?role=phone${seatQ}`;
+    let opened = false;
+    try { ws = new WebSocket(url); } catch (e) { onWsFail(); return; }
+    ws.binaryType = 'arraybuffer';
+    const timer = setTimeout(() => { if (!opened) { try { ws.close(); } catch {} } }, 4000);
+    ws.onopen = () => { opened = true; wsFails = 0; clearTimeout(timer); if (!rtc.open) setNet(true, 'WebSocket'); send({ type: 'hello', ua: navigator.userAgent, mode: 'ws' }); };
+    ws.onmessage = (e) => { if (typeof e.data === 'string') onDown(JSON.parse(e.data)); };
+    ws.onclose = () => { clearTimeout(timer); ws = null; if (!opened) onWsFail(); else { setNet(false, '재연결 중…'); setTimeout(connectWS, 800); } };
+    ws.onerror = () => {};
+  }
+  function onWsFail() {
+    wsFails++;
+    if (wsFails >= 2) { startHttp(); return; }
+    setNet(false, '재시도…');
+    setTimeout(connectWS, 600);
+  }
+  function startHttp() {
+    mode = 'http';
+    if (!rtc.open) $('certWarn').classList.remove('hidden');
+    $('caLink').href = `http://${location.hostname}:8080/ca.crt`;
+    if (!rtc.open) setNet(true, 'HTTP(느림)');
+    send({ type: 'hello', ua: navigator.userAgent, mode: 'http' });
+    httpPump();
+  }
+  async function httpPump() {
+    if (httpBusy) return;
+    httpBusy = true;
+    while (mode === 'http') {
+      if (!httpQueue.length) { await new Promise((r) => setTimeout(r, 4)); continue; }
+      // keep latency low: send only the newest few packets
+      const pkts = httpQueue.splice(0).slice(-4);
+      const body = new Uint8Array(pkts.length * PKT);
+      pkts.forEach((p, i) => body.set(new Uint8Array(p), i * PKT));
+      try {
+        const r = await fetch(`/up?id=${clientId}${seatQ}`, { method: 'POST', body, cache: 'no-store' });
+        const msgs = await r.json();
+        if (!rtc.open) setNet(true, 'HTTP(느림)');
+        for (const m of msgs) onDown(JSON.parse(m));
+      } catch { setNet(false, 'HTTP 오류'); await new Promise((r) => setTimeout(r, 300)); }
+    }
+  }
+  // ------------------------------------------------------------ WebRTC (preferred transport)
+  // Unreliable/unordered channel for sensor packets (a late packet never holds up newer ones),
+  // reliable channel for control messages. Signalling goes over HTTPS fetch, which Safari allows
+  // even when it refuses WSS with our self-made certificate.
+  const rtc = { pc: null, s: null, c: null, open: false, tries: 0, for: SEAT, reofferAt: 0 }; // a seat's page answers as its seat id
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  function gathered(pc, ms) {
+    return new Promise((res) => {
+      if (pc.iceGatheringState === 'complete') return res();
+      const t = setTimeout(res, ms);
+      pc.addEventListener('icegatheringstatechange', () => { if (pc.iceGatheringState === 'complete') { clearTimeout(t); res(); } });
+    });
+  }
+  function rtcLabel() { return mode === 'ws' ? 'WebSocket' : 'HTTP(느림)'; }
+  function closeRtc() {
+    const pc = rtc.pc, was = rtc.open;
+    rtc.pc = null; rtc.s = rtc.c = null; rtc.open = false;
+    try { pc && pc.close(); } catch {}
+    if (was) setNet(true, rtcLabel());
+  }
+  function rtcFail(pc, why) {
+    if (rtc.pc !== pc) return;
+    console.log('[rtc] failed:', why);
+    closeRtc();
+    if (rtc.tries < 5) setTimeout(startRtc, 2500 * rtc.tries);
+  }
+  async function startRtc() {
+    if (!window.RTCPeerConnection || rtc.pc) return;
+    rtc.tries++;
+    const pc = new RTCPeerConnection({ iceServers: [] });
+    rtc.pc = pc;
+    const s = pc.createDataChannel('s', { ordered: false, maxRetransmits: 0 });
+    const c = pc.createDataChannel('c');
+    s.binaryType = 'arraybuffer';
+    const opened = () => {
+      if (rtc.pc !== pc || rtc.open || s.readyState !== 'open' || c.readyState !== 'open') return;
+      rtc.s = s; rtc.c = c; rtc.open = true; rtc.tries = 0;
+      setNet(true, 'WebRTC');
+      $('certWarn').classList.add('hidden');
+      send({ type: 'hello', ua: navigator.userAgent, mode: 'rtc' });
+    };
+    s.onopen = opened; c.onopen = opened;
+    s.onclose = c.onclose = () => rtcFail(pc, 'channel closed');
+    c.onmessage = (e) => { try { onDown(JSON.parse(e.data)); } catch {} };
+    pc.onconnectionstatechange = () => {
+      const st = pc.connectionState;
+      if (st === 'failed' || st === 'closed') rtcFail(pc, st);
+      else if (st === 'disconnected') setTimeout(() => { if (pc.connectionState === 'disconnected') rtcFail(pc, 'disconnected'); }, 2000);
+    };
+    try {
+      await pc.setLocalDescription(await pc.createOffer());
+      await gathered(pc, 1500);
+      const r = await fetch(`/rtc/offer?id=${clientId}${rtc.for ? `&for=${rtc.for}` : ''}${seatQ}`, { method: 'POST', body: JSON.stringify({ sdp: pc.localDescription.sdp }), cache: 'no-store' });
+      if (r.status === 503) { rtc.tries--; closeRtc(); setTimeout(startRtc, 2000); return; } // no game page open yet
+      if (!r.ok) throw new Error(`offer ${r.status}`);
+      let ans = null;
+      for (let i = 0; i < 40 && !ans && rtc.pc === pc; i++) {
+        await sleep(150);
+        const a = await fetch(`/rtc/answer?id=${clientId}`, { cache: 'no-store' });
+        if (a.status === 200) ans = await a.json();
+      }
+      if (!ans) throw new Error('no answer');
+      await pc.setRemoteDescription({ type: 'answer', sdp: ans.sdp });
+      setTimeout(() => { if (rtc.pc === pc && !rtc.open) rtcFail(pc, 'connect timeout'); }, 6000);
+    } catch (e) { rtcFail(pc, e.message); }
+  }
+
+  function send(obj) {
+    const s = JSON.stringify(obj);
+    if (rtc.open && rtc.c && rtc.c.readyState === 'open') { rtc.c.send(s); return; }
+    if (mode === 'ws') { if (ws && ws.readyState === 1) ws.send(s); }
+    else fetch(`/up?id=${clientId}&t=1${seatQ}`, { method: 'POST', body: s, cache: 'no-store' }).then((r) => r.json()).then((msgs) => msgs.forEach((m) => onDown(JSON.parse(m)))).catch(() => {});
+  }
+  function sendPacket(buf) {
+    if (rtc.open && rtc.s && rtc.s.readyState === 'open') {
+      if (rtc.s.bufferedAmount < PKT * 4) rtc.s.send(buf); // never queue stale motion
+      return;
+    }
+    if (mode === 'ws') {
+      if (ws && ws.readyState === 1 && ws.bufferedAmount < PKT * 6) ws.send(buf);
+    } else { httpQueue.push(buf); if (httpQueue.length > 16) httpQueue.shift(); }
+  }
+
+  // ------------------------------------------------------------ downlink
+  let lastPing = 0;
+  function onDown(m) {
+    switch (m.type) {
+      case 'ping': send({ type: 'pong', t: m.t }); break;
+      case 'rtt': lastPing = m.ms; break;
+      case 'prompt':
+        $('promptTitle').textContent = m.title || '';
+        $('promptText').textContent = m.text || '';
+        if (m.color) $('promptTitle').style.color = m.color; else $('promptTitle').style.color = '';
+        if (m.tick) haptic(1);
+        break;
+      case 'haptic': haptic(m.n || 1, m.gap || 45); break;
+      case 'rtc-reoffer':
+        // a game page isn't getting our data (we're streaming to another one): reconnect to that page
+        if (Date.now() - rtc.reofferAt > 3000 && /^[a-z0-9]{4,16}$/.test(m.for || '')) {
+          rtc.reofferAt = Date.now(); rtc.for = m.for;
+          closeRtc(); rtc.tries = 0; startRtc();
+        }
+        break;
+    }
+  }
+
+  // ------------------------------------------------------------ haptics
+  // iOS Safari has no navigator.vibrate; toggling a <input switch> fires the Taptic Engine
+  // on some iOS versions. Harmless if it does nothing.
+  function hapticTick() {
+    if (navigator.vibrate) { navigator.vibrate(18); return; }
+    try {
+      const label = document.createElement('label');
+      label.ariaHidden = 'true';
+      label.style.display = 'none';
+      const input = document.createElement('input');
+      input.type = 'checkbox';
+      input.setAttribute('switch', '');
+      label.appendChild(input);
+      document.head.appendChild(label);
+      label.click();
+      document.head.removeChild(label);
+    } catch {}
+  }
+  function haptic(n, gap = 45) {
+    n = Math.max(1, Math.min(5, n | 0));
+    for (let i = 0; i < n; i++) setTimeout(hapticTick, i * gap);
+  }
+
+  // ------------------------------------------------------------ sensors
+  const buf = new ArrayBuffer(PKT);
+  const dv = new DataView(buf);
+  let seq = 0, ori = null, oriT = 0, evCount = 0, rate = 0, lastRateT = performance.now();
+  let stickX = 0, stickY = 0, buttons = 0;
+
+  function onOrientation(e) {
+    if (e.alpha == null && e.beta == null) return;
+    ori = e;
+    oriT = stamp(e);
+  }
+  function stamp(e) {
+    const now = performance.now();
+    const t = e.timeStamp;
+    return (typeof t === 'number' && t > 0 && Math.abs(now - t) < 1000) ? t : now;
+  }
+  function onMotion(e) {
+    const t = stamp(e);
+    evCount++;
+    const rr = e.rotationRate || {};
+    const a = e.acceleration || {};
+    const g = e.accelerationIncludingGravity || {};
+    let flags = 0;
+    if (ori) flags |= 1;
+    if (e.acceleration && e.acceleration.x != null) flags |= 2;
+    dv.setUint8(0, 1);
+    dv.setUint8(1, flags);
+    dv.setUint16(2, seq++ & 0xffff, true);
+    dv.setFloat64(4, t, true);
+    dv.setFloat32(12, ori ? ori.alpha || 0 : 0, true);
+    dv.setFloat32(16, ori ? ori.beta || 0 : 0, true);
+    dv.setFloat32(20, ori ? ori.gamma || 0 : 0, true);
+    dv.setFloat32(24, rr.alpha || 0, true);
+    dv.setFloat32(28, rr.beta || 0, true);
+    dv.setFloat32(32, rr.gamma || 0, true);
+    dv.setFloat32(36, a.x || 0, true);
+    dv.setFloat32(40, a.y || 0, true);
+    dv.setFloat32(44, a.z || 0, true);
+    dv.setFloat32(48, g.x || 0, true);
+    dv.setFloat32(52, g.y || 0, true);
+    dv.setFloat32(56, g.z || 0, true);
+    dv.setFloat32(60, e.interval || 0, true);
+    dv.setFloat32(64, ori ? t - oriT : 0, true);
+    dv.setFloat32(68, stickX, true);
+    dv.setFloat32(72, stickY, true);
+    dv.setUint32(76, buttons, true);
+    sendPacket(buf.slice(0));
+  }
+  setInterval(() => {
+    const now = performance.now();
+    rate = evCount * 1000 / (now - lastRateT);
+    evCount = 0; lastRateT = now;
+    $('rateText').textContent = `${rate.toFixed(0)} Hz`;
+    $('pingText').textContent = lastPing ? `RTT ${lastPing.toFixed(0)} ms` : '';
+    if (ori) $('mini').textContent = `α${(ori.alpha || 0).toFixed(0)} β${(ori.beta || 0).toFixed(0)} γ${(ori.gamma || 0).toFixed(0)}`;
+  }, 1000);
+
+  let wakeLock = null;
+  async function keepAwake() {
+    try { if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch {}
+  }
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && wakeLock !== null) keepAwake(); });
+
+  $('startBtn').addEventListener('click', async () => {
+    try {
+      if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+        const r = await DeviceMotionEvent.requestPermission();
+        if (r !== 'granted') throw new Error('motion denied');
+      }
+      if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+        const r = await DeviceOrientationEvent.requestPermission();
+        if (r !== 'granted') throw new Error('orientation denied');
+      }
+    } catch (err) {
+      $('sensorNote').innerHTML = '센서 권한이 거부되었습니다. Safari를 완전히 닫고 다시 열어 허용해 주세요.<br><small>' + err.message + '</small>';
+      return;
+    }
+    if (!window.isSecureContext) { $('sensorNote').textContent = 'HTTPS가 아니어서 센서를 쓸 수 없습니다.'; return; }
+    window.addEventListener('deviceorientation', onOrientation);
+    window.addEventListener('devicemotion', onMotion);
+    keepAwake();
+    hapticTick();
+    $('intro').classList.add('hidden');
+    $('play').classList.remove('hidden');
+    send({ type: 'started' });
+    setTimeout(() => { if (rate < 1) { $('promptTitle').textContent = '센서 값이 안 들어옵니다'; $('promptText').textContent = 'Safari 설정에서 "동작 및 방향 접근"을 켜고 새로고침해 주세요.'; } }, 2500);
+  });
+
+  // ------------------------------------------------------------ touch pad
+  const pad = $('pad'), knob = $('knob'), ring = $('holdRing');
+  let touchId = null, sx = 0, sy = 0, st = 0, moved = false, holdTimer = 0, holding = false;
+  const R = 70;
+  pad.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    if (touchId !== null) return;
+    const t = e.changedTouches[0];
+    touchId = t.identifier; sx = t.clientX; sy = t.clientY; st = performance.now(); moved = false; holding = false;
+    const r = pad.getBoundingClientRect();
+    knob.style.left = (sx - r.left) + 'px'; knob.style.top = (sy - r.top) + 'px'; knob.style.display = 'block';
+    buttons |= 1;
+    holdTimer = setTimeout(() => {
+      if (!moved) { holding = true; buttons |= 2; ring.style.opacity = 1; hapticTick(); send({ type: 'btn', name: 'hold', down: true }); }
+    }, 650);
+  }, { passive: false });
+  pad.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    for (const t of e.changedTouches) {
+      if (t.identifier !== touchId) continue;
+      const dx = t.clientX - sx, dy = t.clientY - sy;
+      if (Math.hypot(dx, dy) > 14) { moved = true; clearTimeout(holdTimer); }
+      if (!holding) {
+        const m = Math.min(1, Math.hypot(dx, dy) / R), a = Math.atan2(dy, dx);
+        stickX = moved ? Math.cos(a) * m : 0; stickY = moved ? Math.sin(a) * m : 0;
+        const r = pad.getBoundingClientRect();
+        knob.style.left = (sx - r.left + stickX * R) + 'px'; knob.style.top = (sy - r.top + stickY * R) + 'px';
+      }
+    }
+  }, { passive: false });
+  function endTouch(e) {
+    e.preventDefault();
+    for (const t of e.changedTouches) {
+      if (t.identifier !== touchId) continue;
+      clearTimeout(holdTimer);
+      const dur = performance.now() - st;
+      if (holding) send({ type: 'btn', name: 'hold', down: false });
+      else if (!moved && dur < 400) { send({ type: 'btn', name: 'tap' }); hapticTick(); }
+      touchId = null; stickX = stickY = 0; buttons = 0; holding = false;
+      knob.style.display = 'none'; ring.style.opacity = 0;
+    }
+  }
+  pad.addEventListener('touchend', endTouch, { passive: false });
+  pad.addEventListener('touchcancel', endTouch, { passive: false });
+  document.addEventListener('gesturestart', (e) => e.preventDefault());
+  document.addEventListener('dblclick', (e) => e.preventDefault());
+
+  // ------------------------------------------------------------ camera probe
+  // Measures whether the phone camera, held like a sword hilt, sees enough to track position (SLAM):
+  // per frame sharpness (mean |Laplacian|), feature cells (8x8-px cells of a 160x120 frame holding a
+  // corner strong enough to track), brightness, frame interval — with the gyro speed at that moment.
+  // One small JPEG a second goes along so we can see what the lens sees (fingers? floor?).
+  const cam = { on: false, gen: 0, stream: null, facing: 'environment', cv: null, ctx: null, lastT: 0, lastImg: 0, wNow: 0, frames: 0, fpsT: 0, fps: 0 };
+  window.addEventListener('devicemotion', (e) => {
+    const r = e.rotationRate; if (r) cam.wNow = Math.hypot(r.alpha || 0, r.beta || 0, r.gamma || 0) * Math.PI / 180;
+  });
+  const CW = 160, CH = 120, CELL = 8;
+  const gray = new Float32Array(CW * CH);
+  function analyse() {
+    const d = cam.ctx.getImageData(0, 0, CW, CH).data;
+    let bright = 0;
+    for (let i = 0, j = 0; i < gray.length; i++, j += 4) { const g = 0.299 * d[j] + 0.587 * d[j + 1] + 0.114 * d[j + 2]; gray[i] = g; bright += g; }
+    bright /= gray.length;
+    // sharpness: mean |Laplacian|
+    let lap = 0;
+    for (let y = 1; y < CH - 1; y++) for (let x = 1; x < CW - 1; x++) {
+      const i = y * CW + x;
+      lap += Math.abs(4 * gray[i] - gray[i - 1] - gray[i + 1] - gray[i - CW] - gray[i + CW]);
+    }
+    lap /= (CW - 2) * (CH - 2);
+    // feature cells: max Shi-Tomasi response (min eigenvalue of the 3x3 structure tensor) per cell
+    let cells = 0;
+    for (let cy = 0; cy < CH / CELL; cy++) for (let cx = 0; cx < CW / CELL; cx++) {
+      let best = 0;
+      for (let y = Math.max(2, cy * CELL); y < Math.min(CH - 2, cy * CELL + CELL); y += 2) for (let x = Math.max(2, cx * CELL); x < Math.min(CW - 2, cx * CELL + CELL); x += 2) {
+        let a = 0, b = 0, c = 0;
+        for (let v = -1; v <= 1; v++) for (let u = -1; u <= 1; u++) {
+          const i = (y + v) * CW + x + u;
+          const gx = gray[i + 1] - gray[i - 1], gy = gray[i + CW] - gray[i - CW];
+          a += gx * gx; b += gx * gy; c += gy * gy;
+        }
+        const tr = (a + c) / 2, det = Math.sqrt(Math.max(0, tr * tr - (a * c - b * b)));
+        const lmin = tr - det;
+        if (lmin > best) best = lmin;
+      }
+      if (best > 1500) cells++;
+    }
+    return { bright, lap, cells };
+  }
+  function camFrame(gen, now, meta) {
+    // one loop per camera start (switching cameras used to leave the old loop running too)
+    if (!cam.on || gen !== cam.gen) return;
+    const v = $('camVideo');
+    if (v.readyState >= 2) {
+      cam.ctx.drawImage(v, 0, 0, CW, CH);
+      const r = analyse();
+      const t = performance.now();
+      cam.frames++;
+      if (t - cam.fpsT > 1000) { cam.fps = cam.frames * 1000 / (t - cam.fpsT); cam.frames = 0; cam.fpsT = t; }
+      const dt = cam.lastT ? t - cam.lastT : 0; cam.lastT = t;
+      send({ type: 'cam', t, w: +cam.wNow.toFixed(2), sharp: +r.lap.toFixed(1), cells: r.cells, bright: +r.bright.toFixed(0), dt: +dt.toFixed(1), facing: cam.facing });
+      $('camStat').textContent = `선명도 ${r.lap.toFixed(1)} · 특징 ${r.cells}/300 · 밝기 ${r.bright.toFixed(0)} · ${cam.fps.toFixed(0)}fps · 회전 ${cam.wNow.toFixed(1)}`;
+      if (t - cam.lastImg > 1000) {
+        cam.lastImg = t;
+        send({ type: 'camimg', t, w: +cam.wNow.toFixed(2), facing: cam.facing, img: cam.cv.toDataURL('image/jpeg', 0.6) });
+      }
+    }
+    const next = (n, m) => camFrame(gen, n, m);
+    if (v.requestVideoFrameCallback) v.requestVideoFrameCallback(next); else requestAnimationFrame(next);
+  }
+  async function camStart() {
+    const v = $('camVideo');
+    try {
+      cam.stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: { ideal: cam.facing }, width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 60 } } });
+    } catch (err) { $('camStat').textContent = '카메라를 열 수 없습니다: ' + err.message; return; }
+    v.srcObject = cam.stream;
+    v.classList.remove('hidden');
+    try { await v.play(); } catch {}
+    if (!cam.cv) { cam.cv = document.createElement('canvas'); cam.cv.width = CW; cam.cv.height = CH; cam.ctx = cam.cv.getContext('2d', { willReadFrequently: true }); }
+    cam.on = true; cam.fpsT = performance.now(); cam.frames = 0; cam.lastT = 0;
+    const tr = cam.stream.getVideoTracks()[0];
+    let caps = {};
+    try { caps = tr.getCapabilities ? tr.getCapabilities() : {}; } catch {}
+    send({ type: 'caminfo', facing: cam.facing, settings: tr.getSettings(), caps: { frameRate: caps.frameRate, exposureMode: caps.exposureMode, exposureTime: caps.exposureTime, focusMode: caps.focusMode, width: caps.width, height: caps.height } });
+    $('camBtn').classList.add('on'); $('camBtn').textContent = '📷 진단 끄기';
+    $('camFace').classList.remove('hidden');
+    const gen = ++cam.gen, first = (n, m) => camFrame(gen, n, m);
+    if (v.requestVideoFrameCallback) v.requestVideoFrameCallback(first); else requestAnimationFrame(first);
+  }
+  function camStop() {
+    cam.on = false;
+    if (cam.stream) cam.stream.getTracks().forEach((t) => t.stop());
+    cam.stream = null;
+    $('camVideo').classList.add('hidden');
+    $('camBtn').classList.remove('on'); $('camBtn').textContent = '📷 카메라 진단';
+    $('camFace').classList.add('hidden');
+    $('camStat').textContent = '';
+    send({ type: 'cam', off: true });
+  }
+  $('camBtn').addEventListener('click', () => { if (cam.on) camStop(); else camStart(); });
+  $('camFace').addEventListener('click', () => { cam.facing = cam.facing === 'environment' ? 'user' : 'environment'; camStop(); camStart(); });
+
+  connectWS();
+  startRtc();
+})();
+</script>
+</body>
+</html>

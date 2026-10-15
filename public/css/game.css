@@ -1,0 +1,107 @@
+:root {
+  --ink: #ece6d6;
+  --dim: #a59d8a;
+  --acc: #e0a943;
+  --bad: #d65a4b;
+  --ok: #69c486;
+  --panel: rgba(14, 13, 11, 0.82);
+  --line: rgba(236, 230, 214, 0.14);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: #0b0a09; color: var(--ink); overflow: hidden;
+  font-family: "Pretendard", "Noto Sans KR", "Malgun Gothic", system-ui, sans-serif; }
+canvas#c { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+.mono { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; }
+.hidden { display: none !important; }
+
+.overlay { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 10;
+  background: radial-gradient(ellipse at center, rgba(10,9,8,.55), rgba(10,9,8,.9)); }
+.overlay.pass { pointer-events: none; background: none; align-items: flex-start; padding-top: 7vh; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 28px 32px; max-width: 920px;
+  width: calc(100% - 32px); box-shadow: 0 20px 60px rgba(0,0,0,.5); backdrop-filter: blur(6px); }
+.brand { font-size: 34px; font-weight: 800; letter-spacing: .18em; margin-bottom: 18px; }
+.brand span { color: var(--acc); }
+.cols { display: flex; gap: 28px; align-items: flex-start; flex-wrap: wrap; }
+.qrbox { background: #fff; padding: 10px; border-radius: 10px; color: #222; text-align: center; }
+.qrbox img { display: block; width: 220px; height: 220px; }
+.qrbox .mono { font-size: 11px; margin-top: 6px; max-width: 220px; word-break: break-all; }
+.steps { flex: 1; min-width: 260px; margin: 0; padding-left: 20px; line-height: 1.75; font-size: 15px; }
+.steps b { color: var(--acc); }
+.statusline { display: flex; gap: 10px; margin: 20px 0 14px; flex-wrap: wrap; }
+.pill { font-size: 13px; padding: 5px 12px; border-radius: 99px; border: 1px solid var(--line); color: var(--dim); }
+.pill.ok { color: var(--ok); border-color: rgba(105,196,134,.5); }
+.pill.bad { color: var(--bad); border-color: rgba(214,90,75,.5); }
+.row { display: flex; gap: 12px; flex-wrap: wrap; }
+button { font: inherit; font-size: 15px; padding: 11px 20px; border-radius: 9px; border: 1px solid var(--line);
+  background: rgba(255,255,255,.06); color: var(--ink); cursor: pointer; }
+button:hover { background: rgba(255,255,255,.12); }
+button.primary { background: var(--acc); color: #1d1406; border-color: transparent; font-weight: 700; }
+.hint { margin-top: 14px; font-size: 13px; color: var(--dim); }
+.hint b { color: var(--ink); }
+
+.calibcard { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 12px 26px 10px;
+  text-align: center; min-width: 420px; max-width: 760px; box-shadow: 0 12px 40px rgba(0,0,0,.4); }
+.overlay.pass { padding-top: 2.5vh; }
+.calhead { display: flex; align-items: baseline; justify-content: center; gap: 14px; }
+.calstep { font-size: 13px; color: var(--dim); letter-spacing: .1em; }
+.caltitle { font-size: 26px; font-weight: 800; color: var(--acc); }
+.caltext { font-size: 16px; line-height: 1.5; white-space: pre-line; margin-top: 4px; }
+.calbar { height: 8px; border-radius: 4px; background: rgba(255,255,255,.12); margin: 10px auto 0; max-width: 360px; overflow: hidden; }
+.calbar > div { height: 100%; width: 0%; background: var(--acc); border-radius: 4px; transition: width .06s linear; }
+.calbar.ok > div { background: #7dff9a; }
+.caldiagram { position: fixed; left: 18px; bottom: 34px; display: flex; gap: 10px; }
+.caldiagram figure { margin: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 6px 6px 4px; text-align: center; }
+.caldiagram figcaption { font-size: 12px; color: var(--dim); }
+.caldiagram .body { fill: rgba(236,230,214,.18); stroke: rgba(236,230,214,.55); stroke-width: 1.5; }
+.caldiagram .screen { stroke: #8fb7ff; stroke-width: 4; stroke-linecap: round; }
+.caldiagram .screentxt { fill: #8fb7ff; font-size: 10px; }
+.caldiagram .sword { stroke: #ffc94a; stroke-width: 5; stroke-linecap: round; }
+.caldiagram .tip { fill: #ffc94a; }
+.caldiagram .hand { fill: #ffc94a; opacity: .6; }
+.calhint { font-size: 13px; color: var(--dim); margin-top: 6px; min-height: 17px; }
+
+#toast { position: fixed; left: 50%; bottom: 12vh; transform: translateX(-50%); z-index: 12; font-size: 20px; font-weight: 700;
+  padding: 10px 22px; border-radius: 10px; background: var(--panel); border: 1px solid var(--line); opacity: 0;
+  transition: opacity .25s; pointer-events: none; }
+#toast.show { opacity: 1; }
+
+#hud { position: fixed; left: 10px; top: 10px; z-index: 5; font-size: 12px; line-height: 1.45; white-space: pre;
+  background: rgba(0,0,0,.55); padding: 8px 10px; border-radius: 8px; pointer-events: none; color: #d8d2c2; }
+#help { position: fixed; left: 50%; bottom: 8px; transform: translateX(-50%); z-index: 5; font-size: 12px; color: rgba(236,230,214,.55);
+  pointer-events: none; white-space: nowrap; }
+#help b { color: rgba(236,230,214,.85); }
+#vignette { position: fixed; inset: 0; pointer-events: none; z-index: 4; opacity: 0;
+  background: radial-gradient(ellipse at center, transparent 45%, rgba(170, 20, 10, .55) 100%); transition: opacity .35s; }
+#crosshair { position: fixed; left: 50%; top: 50%; width: 4px; height: 4px; margin: -2px; border-radius: 50%;
+  background: rgba(255,255,255,.35); z-index: 4; pointer-events: none; }
+.lil-gui.root { z-index: 20 !important; }
+
+/* cutting drills panel */
+.drillpanel { position: fixed; right: 14px; top: 14px; z-index: 6; width: 250px; background: var(--panel); border: 1px solid var(--line);
+  border-radius: 12px; padding: 10px 14px 8px; box-shadow: 0 10px 30px rgba(0,0,0,.35); pointer-events: none; }
+.drillpanel .dhead { display: flex; justify-content: space-between; align-items: baseline; }
+.drillpanel .dname { font-size: 20px; font-weight: 800; color: var(--acc); }
+.drillpanel .didx { font-size: 12px; color: var(--dim); }
+.drillpanel .dsub { font-size: 13px; color: var(--ink); margin: 2px 0 6px; }
+.drillpanel .dbody { display: flex; gap: 12px; align-items: center; }
+.drillpanel .dstats { font-size: 13px; line-height: 1.6; color: var(--dim); }
+.drillpanel .dstats b { color: var(--ink); font-size: 18px; }
+.drillpanel .dhint { font-size: 11px; color: var(--dim); margin-top: 6px; }
+.drillpanel .dbg { fill: rgba(255,255,255,.05); stroke: rgba(255,255,255,.12); }
+.drillpanel .dline0 { stroke: #46d7ff; stroke-width: 6; stroke-linecap: round; }
+.drillpanel .dline1 { stroke: #ffc94a; stroke-width: 6; stroke-linecap: round; }
+.drillpanel .dhead0 { fill: #46d7ff; }
+.drillpanel .dhead1 { fill: #ffc94a; }
+.drillpanel .dring { fill: none; stroke: #ffc94a; stroke-width: 4; }
+.drillpanel .dbull { fill: #ffc94a; }
+
+/* camera probe (phone camera feasibility) */
+#camProbe { position: fixed; left: 10px; bottom: 44px; z-index: 6; background: rgba(10, 12, 15, .75); border: 1px solid #333; border-radius: 8px; padding: 6px; }
+#camProbe img { display: block; width: 240px; height: 180px; image-rendering: pixelated; border-radius: 4px; background: #000; }
+#camProbe div { font-size: 12px; color: #d9a441; margin-top: 4px; white-space: nowrap; }
+#camProbe.hidden { display: none; }
+
+/* ZIG SIM Pro input status */
+#zigBox { position: fixed; right: 10px; bottom: 44px; z-index: 6; background: rgba(10, 12, 15, .8); border: 1px solid #333; border-radius: 8px;
+  padding: 8px 10px; font-size: 12px; line-height: 1.5; color: #9fe0b0; white-space: pre; max-width: 46vw; overflow: hidden; }
+#zigBox.hidden { display: none; }

@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GyroSword</title>
+<link rel="stylesheet" href="/css/game.css">
+<script type="importmap">
+{
+  "imports": {
+    "three": "/vendor/three/build/three.module.js",
+    "three/addons/": "/vendor/three/examples/jsm/",
+    "@dimforge/rapier3d-compat": "/vendor/rapier/rapier.mjs"
+  }
+}
+</script>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="vignette"></div>
+<div id="crosshair"></div>
+
+<!-- connection / start -->
+<div id="connect" class="overlay">
+  <div class="panel wide">
+    <div class="brand">GYRO<span>SWORD</span></div>
+    <div class="cols">
+      <div class="qrbox">
+        <img id="qr" alt="폰 접속 QR 코드" width="220" height="220">
+        <div id="phoneUrl" class="mono"></div>
+      </div>
+      <ol class="steps">
+        <li>아이폰과 PC를 <b>같은 Wi-Fi</b>에 연결합니다.</li>
+        <li>아이폰 카메라로 QR을 찍어 Safari로 엽니다.</li>
+        <li>"연결이 비공개가 아님" 경고가 뜨면 <b>세부사항 보기 › 이 웹 사이트 방문</b>을 누릅니다. (내 PC가 만든 인증서라 안전합니다)</li>
+        <li><b>센서 시작</b> › "동작 및 방향" <b>허용</b>.</li>
+        <li><b>손목 스트랩을 끼우고</b> 화면 앞 1.5m 정도에 섭니다.</li>
+      </ol>
+    </div>
+    <div class="statusline">
+      <span id="cPhone" class="pill bad">폰 연결 대기</span>
+      <span id="cData" class="pill">센서 데이터 없음</span>
+    </div>
+    <div class="row">
+      <button id="btnStart" class="primary">시작 (소리 켜기)</button>
+      <button id="btnSim">폰 없이 시뮬레이터로</button>
+    </div>
+    <div class="hint">PC 방화벽 창이 뜨면 Node.js를 <b>허용</b>해야 폰이 접속할 수 있습니다.</div>
+  </div>
+</div>
+
+<!-- calibration -->
+<div id="calib" class="overlay hidden pass">
+  <div class="calibcard">
+    <div class="calhead"><span id="calStep" class="calstep"></span><span id="calTitle" class="caltitle"></span></div>
+    <div id="calText" class="caltext"></div>
+    <div id="calRing" class="calbar"><div id="calArc"></div></div>
+    <div id="calHint" class="calhint"></div>
+  </div>
+  <div id="calDiagram" class="caldiagram">
+    <figure><svg id="calTop" viewBox="-60 -60 120 120" width="150" height="150"></svg><figcaption>위에서 본 모습</figcaption></figure>
+    <figure><svg id="calSide" viewBox="-60 -60 120 120" width="150" height="150"></svg><figcaption>옆에서 본 모습</figcaption></figure>
+  </div>
+</div>
+
+<!-- toast -->
+<div id="toast"></div>
+
+<!-- HUD -->
+<div id="hud" class="mono"></div>
+<div id="help" class="mono">
+  <b>H</b> 디버그 · <b>G</b> 설정 · <b>C</b> 전체 보정 · <b>Space</b> 재정렬 · <b>R</b> 표적 리셋 · <b>1-6</b> 훈련장 이동 · <b>N/B</b> 종목·단계 · <b>WASD/QE</b> 이동 · <b>V</b> 목표 칼 표시 · <b>F9</b> 녹화
+</div>
+
+<script type="module" src="/js/main.js"></script>
+</body>
+</html>
