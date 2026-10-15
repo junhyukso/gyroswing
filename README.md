@@ -245,6 +245,8 @@ iOS 앱 **ZIG SIM Pro**가 보내는 애플 ARKit 위치를 씁니다. 사파리
 
 ## 개발
 
+- 개발 문서: `CLAUDE.md`(작업 안내), `docs/ARCHITECTURE.md`(구조·프로토콜), `docs/DEV-NOTES.md`(실측 사실·함정),
+  `docs/GRIP-APP.md`(ZIG SIM을 대체할 iOS "검 손잡이" 앱 설계)
 - `npm test` — 수학/보정/융합 단위 테스트
 - `npm run bench` — 휘두르기별 오차·지연·칼끝 속도
 - `http://localhost:8080/?timer` — 탭이 가려져도 루프가 도는 QA 모드, `?q=low` — 저사양 렌더
